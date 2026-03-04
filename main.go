@@ -31,7 +31,7 @@ func main() {
 
 	var err error
 
-	// Setup database
+	//初始化 MySQL
 	configuration.DB, err = configuration.SetupDB()
 	if err != nil {
 		log.Fatal(err)

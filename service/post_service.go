@@ -12,13 +12,13 @@ import (
 
 // RoutesPost ...
 func RoutesPost(rg *gin.RouterGroup) {
-	post := rg.Group("/post")
+	posts := rg.Group("/posts")
 
-	post.GET("/:id", util.TokenAuthMiddleware(), getPostByID)
-	post.GET("/", getPosts)
-	post.POST("/", util.TokenAuthMiddleware(), createPost)
-	post.PUT("/", util.TokenAuthMiddleware(), updatePost)
-	post.DELETE("/:id", util.TokenAuthMiddleware(), deletePostByID)
+	posts.GET("/:id", getPostByID)
+	posts.GET("/", getPosts)
+	posts.POST("/", util.TokenAuthMiddleware(), createPost)
+	posts.PUT("/", util.TokenAuthMiddleware(), updatePost)
+	posts.DELETE("/:id", util.TokenAuthMiddleware(), deletePostByID)
 }
 
 // getPostByID godoc
@@ -33,28 +33,25 @@ func RoutesPost(rg *gin.RouterGroup) {
 // @Failure 404 {object} model.MPost
 // @Failure 500 {string} string
 // @Security bearerAuth
-// @Router /post/{id} [get]
+// @Router /posts/{id} [get]
 func getPostByID(c *gin.Context) {
 	var post model.MPost
 	paramID := c.Param("id")
 	varID, err := strconv.ParseInt(paramID, 10, 64)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
 	}
 
 	post, err = repository.GetPostByID(varID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "post not found"})
 		return
 	}
 
-	if (model.MPost{}) == post {
-		c.JSON(http.StatusNotFound, post)
-	} else {
-		c.JSON(http.StatusOK, post)
-	}
+	c.JSON(http.StatusOK, post)
+
 }
 
 // getPosts godoc
@@ -67,16 +64,31 @@ func getPostByID(c *gin.Context) {
 // @Failure 400 {string} string
 // @Failure 404 {object} model.MPost
 // @Failure 500 {string} string
-// @Router /post/ [get]
+// @Router /posts/ [get]
 func getPosts(c *gin.Context) {
 
-	var posts []model.MPost
-	posts, err := repository.GetPostAll()
+	pageStr := c.DefaultQuery("page", "1")
+	sizeStr := c.DefaultQuery("size", "10")
+
+	page, _ := strconv.Atoi(pageStr)
+	size, _ := strconv.Atoi(sizeStr)
+
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 10
+	}
+	if size > 50 {
+		size = 50
+	}
+	offset := (page - 1) * size
+
+	posts, err := repository.ListPosts(offset, size)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, posts)
 
 }
@@ -93,49 +105,30 @@ func getPosts(c *gin.Context) {
 // @Failure 404 {string} string
 // @Failure 500 {string} string
 // @Security bearerAuth
-// @Router /post/ [post]
+// @Router /posts/ [post]
 func createPost(c *gin.Context) {
-
-	// c.JSON(200, gin.H{
-	// 	"token data": c.Request.Header["Userid"][0],
-	// })
-	// fmt.Println("userid: ", c.Request.Header["Userid"][0])
-	// return
-	userId := c.Request.Header["Userid"][0]
-	if userId == "" {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "Somethnig went wrong"})
+	uidAny, ok := c.Get("userId")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "missing userId in token"})
 		return
 	}
-	userIdParsedInt, _ := strconv.ParseInt(userId, 10, 64)
-
-	// userIdLogin, err := strconv.ParseInt(userId, 10, 64)
-	// if err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
-	// 	return
-	// }
+	userId := uidAny.(int64)
 
 	var post model.MPost
-
 	if err := c.ShouldBindJSON(&post); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "invalid json", "error": err.Error()})
 		return
 	}
 
-	//Pointer to the Post struct
-	//ps := &post
-	//fmt.Println(ps)
+	post.UserID = userId
 
-	//fmt.Println("x")
-	//fmt.Println(x)
-	//ps.UserId = x
-	post.UserId = userIdParsedInt
-	post, err := repository.CreatePost(post)
+	created, err := repository.CreatePost(post)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"message": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, post)
+	c.JSON(http.StatusCreated, created)
 }
 
 // updatePost godoc
@@ -150,7 +143,7 @@ func createPost(c *gin.Context) {
 // @Failure 404 {string} string
 // @Failure 500 {string} string
 // @Security bearerAuth
-// @Router /post/ [put]
+// @Router /posts/ [put]
 func updatePost(c *gin.Context) {
 
 	var post model.MPost
@@ -181,7 +174,7 @@ func updatePost(c *gin.Context) {
 // @Failure 404 {object} model.MPost
 // @Failure 500 {string} string
 // @Security bearerAuth
-// @Router /post/{id} [delete]
+// @Router /posts/{id} [delete]
 func deletePostByID(c *gin.Context) {
 
 	var post model.MPost

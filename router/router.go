@@ -16,6 +16,7 @@ func NewRoutes() *gin.Engine {
 	service.RoutesLoginLogout(v1)
 	service.RoutesUser(v1)
 	service.RoutesUserDetail(v1)
+	service.RoutesComment(v1)
 
 	service.RoutesPost(v1)
 

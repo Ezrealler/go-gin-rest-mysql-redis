@@ -1,11 +1,12 @@
 package repository
 
+// import "database/sql"
+
 import (
 	"JWT_REST_Gin_MySQL/configuration"
 	"JWT_REST_Gin_MySQL/model"
 	"errors"
 	"log"
-	"strconv"
 
 	// Use prefix blank identifier _ when importing driver for its side
 	// effect and not use it explicity anywhere in our code.
@@ -21,44 +22,58 @@ func GetPostByID(id int64) (model.MPost, error) {
 
 	var post model.MPost
 
-	result, err := db.Query("select id, title, description, status from posts where id = ?", id)
+	err := db.QueryRow(
+		`SELECT ID, user_id, title, description, status, created_at, updated_at
+		FROM posts
+		WHERE ID = ?;
+		`, id).Scan(
+		&post.ID,
+		&post.UserID,
+		&post.Title,
+		&post.Description,
+		&post.Status,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
 	if err != nil {
-		// print stack trace
-		log.Println("Error query post: " + err.Error())
 		return post, err
-	}
-
-	for result.Next() {
-		err := result.Scan(&post.ID, &post.Title, &post.Description, &post.Status)
-		if err != nil {
-			return post, err
-		}
 	}
 
 	return post, nil
 }
 
-// GetPostAll ...
-func GetPostAll() ([]model.MPost, error) {
+// 分页版GetPostAll ...
+func ListPosts(offset, limit int) ([]model.MPost, error) {
 	db := configuration.DB
 
-	var mPost model.MPost
-	var mPosts []model.MPost
-
-	rows, err := db.Query("select id, title, description, status from posts")
+	rows, err := db.Query(`
+		SELECT ID, user_id, title, description, status, created_at, updated_at
+		FROM posts
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?;
+	`, limit, offset)
 	if err != nil {
-		log.Println("Error query post: " + err.Error())
-		return mPosts, err
+		return nil, err
 	}
+	defer rows.Close()
 
+	posts := make([]model.MPost, 0, limit)
 	for rows.Next() {
-		if err := rows.Scan(&mPost.ID, &mPost.Title, &mPost.Description, &mPost.Status); err != nil {
-			return mPosts, err
+		var p model.MPost
+		if err := rows.Scan(
+			&p.ID,
+			&p.UserID, // ⚠️ 同上
+			&p.Title,
+			&p.Description,
+			&p.Status,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
+			return nil, err
 		}
-		mPosts = append(mPosts, mPost)
+		posts = append(posts, p)
 	}
-
-	return mPosts, nil
+	return posts, rows.Err()
 }
 
 // CreatePost ...
@@ -67,13 +82,13 @@ func CreatePost(mPost model.MPost) (model.MPost, error) {
 
 	var err error
 
-	crt, err := db.Prepare("insert into posts (title, description, status, userId) values (?, ?, ?, ?)")
+	crt, err := db.Prepare("insert into posts (title, description, status, user_id) values (?, ?, ?, ?)")
 	if err != nil {
 		log.Panic(err)
 		return mPost, err
 	}
 
-	res, err := crt.Exec(mPost.Title, mPost.Description, mPost.Status, mPost.UserId)
+	res, err := crt.Exec(mPost.Title, mPost.Description, mPost.Status, mPost.UserID)
 	if err != nil {
 		//log.Panic(err)
 		return mPost, err
@@ -107,9 +122,9 @@ func UpdatePost(mPost model.MPost) (model.MPost, error) {
 	if err != nil {
 		return mPost, err
 	}
-	_, queryError := crt.Exec(mPost.ID, mPost.Title, mPost.Description, mPost.Status)
+	_, queryError := crt.Exec(mPost.Title, mPost.Description, mPost.Status, mPost.ID)
 	if queryError != nil {
-		return mPost, err
+		return mPost, queryError
 	}
 
 	// find post by id
@@ -125,23 +140,18 @@ func UpdatePost(mPost model.MPost) (model.MPost, error) {
 func DeletePostByID(id int64) error {
 	db := configuration.DB
 
-	res, err := GetPostByID(id)
+	res, err := db.Exec("DELETE FROM posts WHERE ID = ?", id)
 	if err != nil {
 		return err
 	}
 
-	s := strconv.FormatInt(res.ID, 10)
-	if (model.MPost{} == res) {
-		return errors.New("no record value with id: %v" + s)
-	}
-
-	crt, err := db.Prepare("delete from posts where id=?")
+	aff, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
-	_, queryError := crt.Exec(id)
-	if queryError != nil {
-		return err
+
+	if aff == 0 {
+		return errors.New("post not found")
 	}
 
 	return nil

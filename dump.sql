@@ -163,14 +163,50 @@ DROP TABLE IF EXISTS `posts`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `posts` (
   `ID` bigint(20) NOT NULL AUTO_INCREMENT,
-  `user_id` bigint(20) DEFAULT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `descripton` text DEFAULT NULL,
-  `status` tinyint(1) DEFAULT NULL,
+  `user_id` bigint(20) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=published,0=draft',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`ID`),
-  UNIQUE KEY `title` (`title`)
+  /*唯一索引UNIQUE KEY，保证title不能重复*/
+  UNIQUE KEY `uk_posts_title` (`title`),
+  /*普通索引KEY，加速按 user_id 条件查询*/
+  KEY `idx_posts_user_id` (`user_id`),
+  KEY `idx_posts_created_at` (`created_at`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `comments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `comments`(
+  `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+  `post_id` bigint(20) DEFAULT NULL,
+  `user_id` bigint(20) DEFAULT NULL,
+  `content` text DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `idx_comments_post_id` (`post_id`),
+  KEY `idx_comments_user_id` (`user_id`),
+  KEY `idx_comments_created_at` (`created_at`)
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `categories`(
+  `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `uk_categories_name`(`name`)
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO categories(name) VALUES ('默认')
+
+ALTER TABLE `posts`
+ADD COLUMN `category_id` bigint(20) NOT NULL DEFAULT 1,
+ADD KEY `idx_posts_category_id` (`category_id`)
 
 
 --

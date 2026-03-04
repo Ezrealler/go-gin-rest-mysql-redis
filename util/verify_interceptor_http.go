@@ -2,7 +2,7 @@ package util
 
 import (
 	"net/http"
-	"strconv"
+	// "strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,12 +22,13 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		s := strconv.FormatInt(accessDetails.UserID, 10)
-		c.Request.Header.Set("userId", s)
+		// s := strconv.FormatInt(accessDetails.UserID, 10)
+		// c.Request.Header.Set("userId", s)
 		//c.Request.Header.Set("hellowWrold", s)
 		//How to access this userId var from request in services
 		//c *gin.Context
 		//c.Request.Header["Userid"] //output will be userid id 1
+		c.Set("userId", accessDetails.UserID)
 		c.Next()
 	}
 }

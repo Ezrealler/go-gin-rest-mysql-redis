@@ -1,6 +1,35 @@
 definitions:
+  model.CreateCommentReq:
+    properties:
+      content:
+        type: string
+    required:
+    - content
+    type: object
+  model.GeneralMsg:
+    properties:
+      message:
+        type: string
+      status:
+        type: integer
+    type: object
+  model.MComment:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      post_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
   model.MPost:
     properties:
+      created_at:
+        type: string
       description:
         example: abcdescription
         type: string
@@ -8,11 +37,16 @@ definitions:
         example: 1
         type: integer
       status:
-        example: true
-        type: boolean
+        example: 1
+        type: integer
       title:
         example: xyz
         type: string
+      updated_at:
+        type: string
+      user_id:
+        example: 1
+        type: integer
     type: object
   model.MUser:
     properties:
@@ -124,7 +158,7 @@ paths:
       summary: Logout
       tags:
       - Logout
-  /post/:
+  /posts/:
     get:
       consumes:
       - application/json
@@ -223,7 +257,7 @@ paths:
       summary: update post
       tags:
       - Post
-  /post/{id}:
+  /posts/{id}:
     delete:
       consumes:
       - application/json
@@ -293,6 +327,77 @@ paths:
       summary: show Post by id
       tags:
       - Post
+  /posts/{id}/comments:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: page
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MComment'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.GeneralMsg'
+      summary: list comments by post id
+      tags:
+      - Comment
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Post ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: comment body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCommentReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.MComment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.GeneralMsg'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.GeneralMsg'
+      security:
+      - bearerAuth: []
+      summary: create comment
+      tags:
+      - Comment
   /user/:
     get:
       consumes:
