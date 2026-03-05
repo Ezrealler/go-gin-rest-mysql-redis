@@ -84,7 +84,13 @@ func getPosts(c *gin.Context) {
 	}
 	offset := (page - 1) * size
 
-	posts, err := repository.ListPosts(offset, size)
+	catStr := c.Query("category_id")
+	var catID int64 = 0
+	if catStr != "" {
+		catID, _ = strconv.ParseInt(catStr, 10, 64)
+	}
+	posts, err := repository.ListPosts(offset, size, catID)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -115,6 +121,9 @@ func createPost(c *gin.Context) {
 	userId := uidAny.(int64)
 
 	var post model.MPost
+	if post.CategoryID == 0 {
+		post.CategoryID = 1
+	}
 	if err := c.ShouldBindJSON(&post); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "invalid json", "error": err.Error()})
 		return

@@ -193,21 +193,23 @@ CREATE TABLE `comments`(
   KEY `idx_comments_created_at` (`created_at`)
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `categories`(
+
+USE ms_account_dev;
+
+CREATE TABLE IF NOT EXISTS `categories` (
   `ID` bigint(20) NOT NULL AUTO_INCREMENT,
   `name` varchar(64) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`ID`),
-  UNIQUE KEY `uk_categories_name`(`name`)
-)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  UNIQUE KEY `uk_categories_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT IGNORE INTO categories(name) VALUES ('默认')
+INSERT IGNORE INTO categories(ID, name) VALUES (1, '默认');
 
 ALTER TABLE `posts`
-ADD COLUMN `category_id` bigint(20) NOT NULL DEFAULT 1,
-ADD KEY `idx_posts_category_id` (`category_id`)
-
+  ADD COLUMN `category_id` bigint(20) NOT NULL DEFAULT 1,
+  ADD KEY `idx_posts_category_id` (`category_id`);
 
 --
 -- Dumping routines for database 'ms_account_dev'

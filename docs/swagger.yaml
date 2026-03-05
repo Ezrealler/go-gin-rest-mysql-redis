@@ -1,4 +1,11 @@
 definitions:
+  model.CreateCategoryReq:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
   model.CreateCommentReq:
     properties:
       content:
@@ -12,6 +19,17 @@ definitions:
         type: string
       status:
         type: integer
+    type: object
+  model.MCategory:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
     type: object
   model.MComment:
     properties:
@@ -28,24 +46,24 @@ definitions:
     type: object
   model.MPost:
     properties:
+      category:
+        description: 可选：联表返回分类名
+        type: string
+      category_id:
+        type: integer
       created_at:
         type: string
       description:
-        example: abcdescription
         type: string
       id:
-        example: 1
         type: integer
       status:
-        example: 1
         type: integer
       title:
-        example: xyz
         type: string
       updated_at:
         type: string
       user_id:
-        example: 1
         type: integer
     type: object
   model.MUser:
@@ -93,6 +111,62 @@ definitions:
 info:
   contact: {}
 paths:
+  /categories/:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MCategory'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: list categories
+      tags:
+      - Category
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: category body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCategoryReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.MCategory'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: create category
+      tags:
+      - Category
   /login:
     post:
       consumes:

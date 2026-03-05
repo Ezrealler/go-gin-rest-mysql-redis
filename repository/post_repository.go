@@ -1,10 +1,9 @@
 package repository
 
-// import "database/sql"
-
 import (
 	"JWT_REST_Gin_MySQL/configuration"
 	"JWT_REST_Gin_MySQL/model"
+	"database/sql"
 	"errors"
 	"log"
 
@@ -13,6 +12,7 @@ import (
 	// When a package is imported prefixed with a blank identifier,the init
 	// function of the package will be called. Also, the GO compiler will
 	// not complain if the package is not used anywhere in the code
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -23,12 +23,15 @@ func GetPostByID(id int64) (model.MPost, error) {
 	var post model.MPost
 
 	err := db.QueryRow(
-		`SELECT ID, user_id, title, description, status, created_at, updated_at
-		FROM posts
-		WHERE ID = ?;
+		`SELECT p.ID, p.user_id, p.category_id, c.name, p.title, p.description, p.status, p.created_at, p.updated_at
+		FROM posts p
+		LEFT JOIN categories c ON p.category_id = c.ID
+		WHERE p.ID = ?
 		`, id).Scan(
 		&post.ID,
 		&post.UserID,
+		&post.CategoryID,
+		&post.Category,
 		&post.Title,
 		&post.Description,
 		&post.Status,
@@ -43,15 +46,33 @@ func GetPostByID(id int64) (model.MPost, error) {
 }
 
 // 分页版GetPostAll ...
-func ListPosts(offset, limit int) ([]model.MPost, error) {
+func ListPosts(offset, limit int, categoryID int64) ([]model.MPost, error) {
 	db := configuration.DB
 
-	rows, err := db.Query(`
-		SELECT ID, user_id, title, description, status, created_at, updated_at
-		FROM posts
-		ORDER BY created_at DESC
-		LIMIT ? OFFSET ?;
-	`, limit, offset)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	if categoryID > 0 {
+		rows, err = db.Query(`
+			SELECT p.ID, p.user_id, p.category_id, c.name, p.title, p.description, p.status, p.created_at, p.updated_at
+			FROM posts p
+			LEFT JOIN categories c ON p.category_id = c.ID
+			WHERE p.category_id = ?
+			ORDER BY p.created_at DESC
+			LIMIT ? OFFSET ?
+		`, categoryID, limit, offset)
+	} else {
+		rows, err = db.Query(`
+			SELECT p.ID, p.user_id, p.category_id, c.name, p.title, p.description, p.status, p.created_at, p.updated_at
+			FROM posts p
+			LEFT JOIN categories c ON p.category_id = c.ID
+			ORDER BY p.created_at DESC
+			LIMIT ? OFFSET ?
+		`, limit, offset)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +82,8 @@ func ListPosts(offset, limit int) ([]model.MPost, error) {
 	for rows.Next() {
 		var p model.MPost
 		if err := rows.Scan(
-			&p.ID,
-			&p.UserID, // ⚠️ 同上
-			&p.Title,
-			&p.Description,
-			&p.Status,
-			&p.CreatedAt,
-			&p.UpdatedAt,
+			&p.ID, &p.UserID, &p.CategoryID, &p.Category,
+			&p.Title, &p.Description, &p.Status, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -82,13 +98,20 @@ func CreatePost(mPost model.MPost) (model.MPost, error) {
 
 	var err error
 
-	crt, err := db.Prepare("insert into posts (title, description, status, user_id) values (?, ?, ?, ?)")
+	if mPost.CategoryID == 0 {
+		mPost.CategoryID = 1
+	}
+
+	crt, err := db.Prepare(`
+		INSERT INTO posts (user_id, category_id, title, description, status)
+		VALUES (?, ?, ?, ?, ?)
+	`)
 	if err != nil {
 		log.Panic(err)
 		return mPost, err
 	}
 
-	res, err := crt.Exec(mPost.Title, mPost.Description, mPost.Status, mPost.UserID)
+	res, err := crt.Exec(mPost.UserID, mPost.CategoryID, mPost.Title, mPost.Description, mPost.Status)
 	if err != nil {
 		//log.Panic(err)
 		return mPost, err
